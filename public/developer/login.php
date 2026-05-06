@@ -64,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </a>
             </div>
             
-            <h2 class="form-title" style="font-size: 1.5rem;">Вход для разработчиков</h2>
+            <h2 class="form-title" style="font-size: 1.5rem; text-align: center;">Вход для разработчиков</h2>
             
             <?php if (isset($error)): ?>
                 <div style="background: rgba(255, 51, 102, 0.1); border: 1px solid var(--danger); border-radius: 4px; padding: 1rem; margin-bottom: 1.5rem; color: var(--danger);">

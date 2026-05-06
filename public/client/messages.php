@@ -1,23 +1,23 @@
 <?php
-require_once __DIR__ . '/../../includes/config.php';
-require_once __DIR__ . '/../../includes/db.php';
-require_once __DIR__ . '/../../includes/functions.php';
+require_once __DIR__ . '/../includes/config.php';
+require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/functions.php';
 
-if (!isDeveloper()) {
-    redirect('/developer/login.php');
+if (!isClient()) {
+    redirect('/client/login.php');
 }
 
 $user_id = (int)($_SESSION['user_id'] ?? 0);
-$dev_result = query("SELECT id FROM developers WHERE user_id = $user_id LIMIT 1");
-$dev = $dev_result ? fetch($dev_result) : null;
-if (!$dev) {
-    redirect('/developer/dashboard.php');
+$c_result = query("SELECT id FROM clients WHERE user_id = $user_id LIMIT 1");
+$client = $c_result ? fetch($c_result) : null;
+if (!$client) {
+    redirect('/client/dashboard.php');
 }
-$developer_id = (int)$dev['id'];
+$client_id = (int)$client['id'];
 
 $project_id = isset($_GET['project']) ? (int)$_GET['project'] : 0;
 if ($project_id <= 0) {
-    $p = query("SELECT id FROM projects WHERE developer_id = $developer_id ORDER BY updated_at DESC LIMIT 1");
+    $p = query("SELECT id FROM projects WHERE client_id = $client_id ORDER BY updated_at DESC LIMIT 1");
     $row = $p ? fetch($p) : null;
     $project_id = $row ? (int)$row['id'] : 0;
 }
@@ -25,19 +25,18 @@ if ($project_id <= 0) {
 if ($project_id > 0 && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['message'])) {
     $message = escape($_POST['message']);
     query("INSERT INTO messages (project_id, sender_id, message, is_read, created_at) VALUES ($project_id, $user_id, '$message', 0, NOW())");
-    redirect("/developer/messages/index.php?project=$project_id");
+    redirect("/client/messages.php?project=$project_id");
 }
 
-$projects = query("SELECT id, title FROM projects WHERE developer_id = $developer_id ORDER BY updated_at DESC");
+$projects = query("SELECT id, title FROM projects WHERE client_id = $client_id ORDER BY updated_at DESC");
 $messages = $project_id > 0
     ? query("SELECT m.*, u.full_name FROM messages m JOIN users u ON u.id = m.sender_id WHERE m.project_id = $project_id ORDER BY m.created_at ASC")
     : null;
-
 $unread_messages = query("
-    SELECT COUNT(*) as count
+    SELECT COUNT(*) as count 
     FROM messages m
     JOIN projects p ON m.project_id = p.id
-    WHERE p.developer_id = $developer_id AND m.is_read = 0 AND m.sender_id != $user_id
+    WHERE p.client_id = $client_id AND m.is_read = 0 AND m.sender_id != $user_id
 ");
 $unread = $unread_messages ? fetch($unread_messages)['count'] : 0;
 ?>
@@ -46,12 +45,13 @@ $unread = $unread_messages ? fetch($unread_messages)['count'] : 0;
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Сообщения разработчика | Lark Freelance</title>
-    <link rel="stylesheet" href="../../assets/css/style.css">
+    <title>Сообщения клиента | Lark Freelance</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="dark-theme">
+    <!-- Анимированный фон -->
     <div class="cyber-background">
         <div class="grid-lines"></div>
         <div class="floating-shapes">
@@ -61,6 +61,7 @@ $unread = $unread_messages ? fetch($unread_messages)['count'] : 0;
         </div>
     </div>
 
+    <!-- Шапка -->
     <header class="cyber-header">
         <div class="container">
             <nav class="cyber-nav">
@@ -74,16 +75,16 @@ $unread = $unread_messages ? fetch($unread_messages)['count'] : 0;
 
                 <div class="nav-hologram">
                     <a href="/" class="nav-link">ГЛАВНАЯ</a>
-                    <a href="../dashboard.php" class="nav-link">КАБИНЕТ</a>
-                    <a href="../projects/available.php" class="nav-link">ДОСТУПНЫЕ</a>
-                    <a href="../profile.php" class="nav-link">ПРОФИЛЬ</a>
-                    <a href="index.php" class="nav-link active">
+                    <a href="dashboard.php" class="nav-link">КАБИНЕТ</a>
+                    <a href="projects/index.php" class="nav-link">МОИ ПРОЕКТЫ</a>
+                    <a href="profile/index.php" class="nav-link">ПРОФИЛЬ</a>
+                    <a href="messages.php" class="nav-link active">
                         <i class="fas fa-envelope"></i>
                         <?php if ($unread > 0): ?>
                             <span style="margin-left: 0.35rem; color: var(--primary-gold);"><?= (int)$unread ?></span>
                         <?php endif; ?>
                     </a>
-                    <a href="../logout.php" class="nav-link admin-portal">
+                    <a href="logout.php" class="nav-link admin-portal">
                         <i class="fas fa-sign-out-alt"></i> ВЫЙТИ
                     </a>
                 </div>
@@ -97,6 +98,7 @@ $unread = $unread_messages ? fetch($unread_messages)['count'] : 0;
         </div>
     </header>
 
+    <!-- Основной контент -->
     <section class="cyber-section" style="padding-top: 8rem;">
         <div class="container">
             <h1 class="title-gold" style="font-size: 2rem; margin-bottom: 2rem;">
@@ -149,6 +151,7 @@ $unread = $unread_messages ? fetch($unread_messages)['count'] : 0;
         </div>
     </section>
 
+    <!-- Футер -->
     <footer class="cyber-footer">
         <div class="container">
             <div class="footer-bottom">
@@ -157,7 +160,7 @@ $unread = $unread_messages ? fetch($unread_messages)['count'] : 0;
         </div>
     </footer>
 
-    <script src="../../assets/js/main.js"></script>
+    <script src="../assets/js/main.js"></script>
     <script>
         document.getElementById('menuToggle').addEventListener('click', function() {
             document.querySelector('.nav-hologram').classList.toggle('active');

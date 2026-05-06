@@ -34,6 +34,9 @@ function redirect($url) {
 // Добавление уведомления
 function addNotification($user_id, $title, $message, $link = '') {
     global $connection;
+    if (!isset($connection) || !($connection instanceof mysqli)) {
+        return false;
+    }
     $user_id = (int)$user_id;
     $title = mysqli_real_escape_string($connection, $title);
     $message = mysqli_real_escape_string($connection, $message);
@@ -47,6 +50,9 @@ function addNotification($user_id, $title, $message, $link = '') {
 // Добавление лога
 function addLog($user_id, $action, $details = '') {
     global $connection;
+    if (!isset($connection) || !($connection instanceof mysqli)) {
+        return false;
+    }
     $user_id = $user_id ? (int)$user_id : 'NULL';
     $action = mysqli_real_escape_string($connection, $action);
     $details = mysqli_real_escape_string($connection, $details);

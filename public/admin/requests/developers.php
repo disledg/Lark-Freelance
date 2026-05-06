@@ -10,6 +10,57 @@ if (!isManager() && !isAdmin()) {
     redirect('../login.php');
 }
 
+$modal = isset($_GET['modal']) ? $_GET['modal'] : '';
+$selected_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+$selected_app = null;
+
+if ($selected_id > 0) {
+    $selected_result = query("SELECT * FROM developer_applications WHERE id = $selected_id");
+    $selected_app = $selected_result ? fetch($selected_result) : null;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+    if ($id > 0) {
+        if ($_POST['action'] === 'approve_developer') {
+            $comment = isset($_POST['comment']) ? escape($_POST['comment']) : '';
+            $result = query("SELECT * FROM developer_applications WHERE id = $id");
+            $app = $result ? fetch($result) : null;
+            if ($app && $app['status'] === 'new') {
+                $password = password_hash(substr(md5((string)time()), 0, 8), PASSWORD_DEFAULT);
+                $username = strtolower(explode('@', $app['email'])[0]);
+                $username = preg_replace('/[^a-z0-9_]/', '_', $username);
+                $safe_username = escape($username);
+                $safe_email = escape($app['email']);
+                $safe_full_name = escape($app['full_name']);
+                $safe_level = escape($app['level']);
+                $safe_skills = escape($app['skills']);
+                $safe_experience = escape($app['experience']);
+                $safe_portfolio = escape((string)$app['portfolio']);
+                $safe_telegram = escape((string)$app['telegram']);
+                $safe_github = escape((string)$app['github']);
+
+                $user_insert = query("INSERT INTO users (username, email, password, full_name, role, status) VALUES ('$safe_username', '$safe_email', '$password', '$safe_full_name', 'developer', 'approved')");
+                if ($user_insert) {
+                    $user_id = insert_id();
+                    query("INSERT INTO developers (user_id, level, skills, experience, portfolio, telegram, github) VALUES ($user_id, '$safe_level', '$safe_skills', '$safe_experience', '$safe_portfolio', '$safe_telegram', '$safe_github')");
+                    query("UPDATE developer_applications SET status = 'approved', manager_comment = '$comment' WHERE id = $id");
+                    addNotification($user_id, 'Заявка одобрена', 'Ваша заявка одобрена. Войдите в систему.', '/developer/login.php');
+                    addLog($_SESSION['user_id'] ?? null, 'approve_developer', "Approved developer application #$id");
+                }
+            }
+            redirect('developers.php');
+        }
+
+        if ($_POST['action'] === 'reject_developer') {
+            $comment = isset($_POST['comment']) ? escape($_POST['comment']) : '';
+            query("UPDATE developer_applications SET status = 'rejected', manager_comment = '$comment' WHERE id = $id");
+            addLog($_SESSION['user_id'] ?? null, 'reject_developer', "Rejected developer application #$id");
+            redirect('developers.php');
+        }
+    }
+}
+
 // Получаем заявки от разработчиков
 $applications = query("
     SELECT * FROM developer_applications 
@@ -55,6 +106,25 @@ if ($applications) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="dark-theme">
+    <style>
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            backdrop-filter: blur(8px);
+            z-index: 999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .modal-card {
+            width: min(860px, 95vw);
+            max-height: 88vh;
+            overflow: auto;
+            padding: 1.25rem;
+        }
+    </style>
     <div class="cyber-background">
         <div class="grid-lines"></div>
         <div class="floating-shapes"></div>
@@ -162,15 +232,15 @@ if ($applications) {
                                     </span>
                                 </td>
                                 <td style="padding: 1rem;">
-                                    <a href="view_developer.php?id=<?= $app['id'] ?>" class="btn-cyber btn-neon" style="padding: 0.3rem 1rem; min-width: auto; font-size: 0.8rem;">
+                                    <a href="developers.php?modal=view&id=<?= $app['id'] ?>" class="btn-cyber btn-neon" style="padding: 0.3rem 1rem; min-width: auto; font-size: 0.8rem;">
                                         <i class="fas fa-eye"></i> Просмотр
                                     </a>
                                     
                                     <?php if ($app['status'] === 'new'): ?>
-                                        <a href="approve_developer.php?id=<?= $app['id'] ?>" class="btn-cyber btn-gold" style="padding: 0.3rem 1rem; min-width: auto; font-size: 0.8rem;">
+                                        <a href="developers.php?modal=approve&id=<?= $app['id'] ?>" class="btn-cyber btn-gold" style="padding: 0.3rem 1rem; min-width: auto; font-size: 0.8rem;">
                                             <i class="fas fa-check"></i> Одобрить
                                         </a>
-                                        <a href="reject_developer.php?id=<?= $app['id'] ?>" class="btn-cyber btn-neon" style="padding: 0.3rem 1rem; min-width: auto; font-size: 0.8rem; background: rgba(255,51,102,0.1); color: var(--danger);">
+                                        <a href="developers.php?modal=reject&id=<?= $app['id'] ?>" class="btn-cyber btn-neon" style="padding: 0.3rem 1rem; min-width: auto; font-size: 0.8rem; background: rgba(255,51,102,0.1); color: var(--danger);">
                                             <i class="fas fa-times"></i> Отклонить
                                         </a>
                                     <?php endif; ?>
@@ -205,5 +275,53 @@ if ($applications) {
             document.querySelector('.nav-hologram').classList.toggle('active');
         });
     </script>
+
+    <?php if ($selected_app && in_array($modal, ['view', 'approve', 'reject'], true)): ?>
+    <div class="modal-overlay" onclick="if (event.target === this) window.location.href='developers.php';">
+        <div class="cyber-card modal-card">
+            <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom:1rem;">
+                <h3 style="color: var(--primary-gold); margin: 0;">Заявка разработчика #<?= (int)$selected_app['id'] ?></h3>
+                <a href="developers.php" class="btn-cyber btn-neon" style="padding:0.3rem 0.8rem; min-width:auto;">Закрыть</a>
+            </div>
+
+            <p><strong>ФИО:</strong> <?= htmlspecialchars($selected_app['full_name']) ?></p>
+            <p><strong>Email:</strong> <?= htmlspecialchars($selected_app['email']) ?></p>
+            <p><strong>Уровень:</strong> <?= htmlspecialchars($selected_app['level']) ?></p>
+            <p><strong>Навыки:</strong><br><?= nl2br(htmlspecialchars($selected_app['skills'])) ?></p>
+            <p><strong>Опыт:</strong><br><?= nl2br(htmlspecialchars($selected_app['experience'])) ?></p>
+            <p><strong>Портфолио:</strong> <?= htmlspecialchars((string)$selected_app['portfolio']) ?></p>
+            <p><strong>Telegram:</strong> <?= htmlspecialchars((string)$selected_app['telegram']) ?></p>
+            <p><strong>GitHub:</strong> <?= htmlspecialchars((string)$selected_app['github']) ?></p>
+            <p><strong>Статус:</strong> <?= htmlspecialchars($selected_app['status']) ?></p>
+
+            <?php if ($modal === 'approve' && $selected_app['status'] === 'new'): ?>
+                <form method="POST">
+                    <input type="hidden" name="action" value="approve_developer">
+                    <input type="hidden" name="id" value="<?= (int)$selected_app['id'] ?>">
+                    <textarea class="cyber-input" name="comment" rows="3" placeholder="Комментарий менеджера (необязательно)"></textarea>
+                    <div style="display:flex; gap:0.8rem; margin-top:0.8rem;">
+                        <button class="btn-cyber btn-gold" type="submit">Подтвердить одобрение</button>
+                        <a href="developers.php" class="btn-cyber btn-neon">Отмена</a>
+                    </div>
+                </form>
+            <?php elseif ($modal === 'reject' && $selected_app['status'] === 'new'): ?>
+                <form method="POST">
+                    <input type="hidden" name="action" value="reject_developer">
+                    <input type="hidden" name="id" value="<?= (int)$selected_app['id'] ?>">
+                    <textarea class="cyber-input" name="comment" rows="3" placeholder="Причина отклонения"></textarea>
+                    <div style="display:flex; gap:0.8rem; margin-top:0.8rem;">
+                        <button class="btn-cyber btn-gold" type="submit">Подтвердить отклонение</button>
+                        <a href="developers.php" class="btn-cyber btn-neon">Отмена</a>
+                    </div>
+                </form>
+            <?php elseif ($selected_app['status'] === 'new'): ?>
+                <div style="display:flex; gap:0.8rem; margin-top:0.8rem;">
+                    <a href="developers.php?modal=approve&id=<?= (int)$selected_app['id'] ?>" class="btn-cyber btn-gold">Одобрить</a>
+                    <a href="developers.php?modal=reject&id=<?= (int)$selected_app['id'] ?>" class="btn-cyber btn-neon">Отклонить</a>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php endif; ?>
 </body>
 </html>

@@ -1,295 +1,228 @@
 <?php
-require_once '../includes/config.php';
-require_once '../includes/db.php';
-require_once '../includes/functions.php';
+require_once __DIR__ . '/../includes/config.php';
+require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/functions.php';
 
 if (!isDeveloper()) {
     redirect('login.php');
 }
 
-$user_id = $_SESSION['user_id'];
+$user_id = (int)$_SESSION['user_id'];
 
-// Получаем данные разработчика
-$result = query("SELECT d.*, u.full_name, u.email 
-                 FROM developers d 
-                 JOIN users u ON d.user_id = u.id 
-                 WHERE u.id = $user_id");
-$developer = fetch($result);
+$result = query("
+    SELECT d.*, u.full_name, u.email, u.created_at, u.last_login
+    FROM developers d
+    JOIN users u ON d.user_id = u.id
+    WHERE u.id = $user_id
+");
+$developer = $result ? fetch($result) : null;
+if (!$developer) {
+    redirect('login.php');
+}
 
-// Получаем проекты
-$projects = query("SELECT p.*, c.company_name,
-                        (SELECT COUNT(*) FROM messages WHERE project_id = p.id AND is_read = 0 AND sender_id != $user_id) as new_messages
-                        FROM projects p 
-                        JOIN clients c ON p.client_id = c.id 
-                        WHERE p.developer_id = {$developer['id']}
-                        ORDER BY p.created_at DESC");
+$developer_id = (int)$developer['id'];
+
+$stats = [];
+$r = query("SELECT COUNT(*) as count FROM projects WHERE developer_id = $developer_id");
+$stats['total'] = $r ? (int)fetch($r)['count'] : 0;
+$r = query("SELECT COUNT(*) as count FROM projects WHERE developer_id = $developer_id AND status = 'new'");
+$stats['new'] = $r ? (int)fetch($r)['count'] : 0;
+$r = query("SELECT COUNT(*) as count FROM projects WHERE developer_id = $developer_id AND status = 'in_progress'");
+$stats['in_progress'] = $r ? (int)fetch($r)['count'] : 0;
+$r = query("SELECT COUNT(*) as count FROM projects WHERE developer_id = $developer_id AND status = 'completed'");
+$stats['completed'] = $r ? (int)fetch($r)['count'] : 0;
+
+$recent_projects = query("
+    SELECT p.*, c.company_name
+    FROM projects p
+    JOIN clients c ON c.id = p.client_id
+    WHERE p.developer_id = $developer_id
+    ORDER BY p.created_at DESC
+    LIMIT 3
+");
+
+$unread_messages = query("
+    SELECT COUNT(*) as count
+    FROM messages m
+    JOIN projects p ON m.project_id = p.id
+    WHERE p.developer_id = $developer_id AND m.is_read = 0 AND m.sender_id != $user_id
+");
+$unread = $unread_messages ? (int)fetch($unread_messages)['count'] : 0;
 ?>
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Панель разработчика</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Кабинет разработчика | Lark Freelance</title>
     <link rel="stylesheet" href="../assets/css/style.css">
-    <style>
-        .dashboard {
-            display: flex;
-            min-height: 100vh;
-        }
-        
-        .sidebar {
-            width: 280px;
-            background: rgba(17, 17, 31, 0.95);
-            border-right: 1px solid rgba(255, 215, 0, 0.3);
-            padding: 2rem 1rem;
-            position: fixed;
-            height: 100vh;
-            overflow-y: auto;
-        }
-        
-        .sidebar-header {
-            text-align: center;
-            margin-bottom: 2rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid rgba(255, 215, 0, 0.3);
-        }
-        
-        .logo-gold {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 1.5rem;
-            font-weight: 900;
-            background: linear-gradient(45deg, #FFD700, #FFC400);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 1rem;
-        }
-        
-        .user-info {
-            margin-top: 1rem;
-        }
-        
-        .user-name {
-            color: #fff;
-            font-size: 1rem;
-            font-weight: 600;
-        }
-        
-        .user-level {
-            color: #FFD700;
-            font-size: 0.85rem;
-            margin-top: 0.3rem;
-        }
-        
-        .sidebar-nav {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-        
-        .sidebar-nav a {
-            color: #a0a0c0;
-            text-decoration: none;
-            padding: 0.8rem 1rem;
-            border-radius: 4px;
-            transition: all 0.3s ease;
-            font-size: 0.9rem;
-        }
-        
-        .sidebar-nav a:hover {
-            background: rgba(255, 215, 0, 0.1);
-            color: #FFD700;
-        }
-        
-        .sidebar-nav a.active {
-            background: rgba(255, 215, 0, 0.15);
-            color: #FFD700;
-            border-left: 3px solid #FFD700;
-        }
-        
-        .content {
-            flex: 1;
-            margin-left: 280px;
-            padding: 2rem;
-        }
-        
-        .content h1 {
-            color: #FFD700;
-            font-family: 'Orbitron', sans-serif;
-            font-size: 1.8rem;
-            margin-bottom: 2rem;
-        }
-        
-        .projects-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 1.5rem;
-        }
-        
-        .project-card {
-            background: rgba(17, 17, 31, 0.8);
-            border: 1px solid rgba(255, 215, 0, 0.2);
-            border-radius: 8px;
-            padding: 1.5rem;
-            transition: all 0.3s ease;
-        }
-        
-        .project-card:hover {
-            transform: translateY(-3px);
-            border-color: rgba(255, 215, 0, 0.5);
-            box-shadow: 0 10px 30px rgba(255, 215, 0, 0.1);
-        }
-        
-        .project-card h3 {
-            color: #fff;
-            font-size: 1.2rem;
-            margin-bottom: 0.5rem;
-        }
-        
-        .project-card .company {
-            color: #FFD700;
-            font-size: 0.85rem;
-            margin-bottom: 1rem;
-        }
-        
-        .project-card .description {
-            color: #a0a0c0;
-            font-size: 0.9rem;
-            line-height: 1.5;
-            margin-bottom: 1rem;
-        }
-        
-        .new-messages {
-            background: rgba(255, 51, 102, 0.2);
-            color: #ff3366;
-            padding: 0.3rem 0.8rem;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            display: inline-block;
-            margin-bottom: 1rem;
-        }
-        
-        .project-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 1rem;
-            padding-top: 1rem;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .status {
-            padding: 0.3rem 0.8rem;
-            border-radius: 20px;
-            font-size: 0.8rem;
-        }
-        
-        .status-new {
-            background: rgba(0, 243, 255, 0.2);
-            color: #00f3ff;
-        }
-        
-        .status-in_progress {
-            background: rgba(255, 215, 0, 0.2);
-            color: #FFD700;
-        }
-        
-        .status-completed {
-            background: rgba(0, 255, 136, 0.2);
-            color: #00ff88;
-        }
-        
-        .status-cancelled {
-            background: rgba(255, 51, 102, 0.2);
-            color: #ff3366;
-        }
-        
-        .btn-small {
-            background: rgba(255, 215, 0, 0.1);
-            border: 1px solid rgba(255, 215, 0, 0.3);
-            color: #FFD700;
-            padding: 0.4rem 1rem;
-            border-radius: 4px;
-            text-decoration: none;
-            font-size: 0.8rem;
-            transition: all 0.3s ease;
-        }
-        
-        .btn-small:hover {
-            background: rgba(255, 215, 0, 0.2);
-        }
-        
-        @media (max-width: 768px) {
-            .sidebar {
-                width: 100%;
-                position: relative;
-                height: auto;
-            }
-            .content {
-                margin-left: 0;
-            }
-        }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="dark-theme">
-    <div class="dashboard">
-        <!-- Боковое меню -->
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <div class="logo-gold">LARK</div>
-                <div class="user-info">
-                    <div class="user-name"><?= htmlspecialchars($developer['full_name'] ?? 'Разработчик') ?></div>
-                    <div class="user-level"><?= strtoupper($developer['level'] ?? 'junior') ?></div>
-                </div>
-            </div>
-            
-            <nav class="sidebar-nav">
-                <a href="dashboard.php" class="active">📊 Мои проекты</a>
-                <a href="projects/available.php">🔍 Доступные проекты</a>
-                <a href="messages/index.php">💬 Сообщения</a>
-                <a href="profile.php">👤 Профиль</a>
-                <a href="logout.php">🚪 Выход</a>
-            </nav>
-        </aside>
-        
-        <!-- Основной контент -->
-        <main class="content">
-            <h1>Мои проекты</h1>
-            
-            <?php if ($projects && mysqli_num_rows($projects) > 0): ?>
-                <div class="projects-grid">
-                    <?php while ($project = fetch($projects)): ?>
-                    <div class="project-card">
-                        <h3><?= htmlspecialchars($project['title']) ?></h3>
-                        <p class="company"><?= htmlspecialchars($project['company_name']) ?></p>
-                        <p class="description"><?= htmlspecialchars(mb_substr($project['description'], 0, 100)) ?>...</p>
-                        
-                        <?php if ($project['new_messages'] > 0): ?>
-                            <div class="new-messages">
-                                📨 Новых сообщений: <?= $project['new_messages'] ?>
-                            </div>
-                        <?php endif; ?>
-                        
-                        <div class="project-footer">
-                            <span class="status status-<?= $project['status'] ?>">
-                                <?= $project['status'] == 'new' ? 'Новый' : 
-                                    ($project['status'] == 'in_progress' ? 'В работе' : 
-                                    ($project['status'] == 'completed' ? 'Завершен' : 'Отменен')) ?>
-                            </span>
-                            <a href="projects/view.php?id=<?= $project['id'] ?>" class="btn-small">Подробнее →</a>
-                        </div>
+    <div class="cyber-background">
+        <div class="grid-lines"></div>
+        <div class="floating-shapes">
+            <div class="shape shape-1"></div>
+            <div class="shape shape-2"></div>
+            <div class="shape shape-3"></div>
+        </div>
+    </div>
+
+    <header class="cyber-header">
+        <div class="container">
+            <nav class="cyber-nav">
+                <a href="/" class="cyber-logo">
+                    <div class="logo-glow"></div>
+                    <div class="logo-text">
+                        <span class="logo-gold">LARK</span>
+                        <span class="logo-light">FREELANCE</span>
                     </div>
-                    <?php endwhile; ?>
-                </div>
-            <?php else: ?>
-                <div class="cyber-card" style="text-align: center; padding: 3rem;">
-                    <i class="fas fa-folder-open" style="font-size: 3rem; color: var(--primary-gold); margin-bottom: 1rem;"></i>
-                    <h3 style="margin-bottom: 1rem;">У вас пока нет проектов</h3>
-                    <p style="color: var(--text-gray); margin-bottom: 2rem;">Посмотрите доступные проекты и начните работать!</p>
-                    <a href="projects/available.php" class="btn-cyber btn-gold" style="display: inline-block;">
-                        Найти проекты
+                </a>
+
+                <div class="nav-hologram">
+                    <a href="/" class="nav-link">ГЛАВНАЯ</a>
+                    <a href="dashboard.php" class="nav-link active">КАБИНЕТ</a>
+                    <a href="projects/available.php" class="nav-link">ДОСТУПНЫЕ</a>
+                    <a href="profile.php" class="nav-link">ПРОФИЛЬ</a>
+                    <a href="messages/index.php" class="nav-link">
+                        <i class="fas fa-envelope"></i>
+                        <?php if ($unread > 0): ?>
+                            <span style="margin-left: 0.35rem; color: var(--primary-gold);"><?= $unread ?></span>
+                        <?php endif; ?>
+                    </a>
+                    <a href="logout.php" class="nav-link admin-portal">
+                        <i class="fas fa-sign-out-alt"></i> ВЫЙТИ
                     </a>
                 </div>
+
+                <button class="cyber-menu-btn" id="menuToggle">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <section class="cyber-section" style="padding-top: 8rem;">
+        <div class="container">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <h1 class="title-gold" style="font-size: 2rem;">
+                        Здравствуйте, <?= htmlspecialchars($developer['full_name'] ?: 'Разработчик') ?>!
+                    </h1>
+                    <p style="color: var(--text-gray);">
+                        <i class="fas fa-code" style="color: var(--primary-gold); margin-right: 0.5rem;"></i>
+                        Уровень: <?= strtoupper(htmlspecialchars($developer['level'] ?: 'junior')) ?>
+                    </p>
+                </div>
+                <?php if ($unread > 0): ?>
+                <div style="background: rgba(255,215,0,0.1); padding: 0.5rem 1.5rem; border-radius: 30px; border: 1px solid var(--primary-gold);">
+                    <i class="fas fa-envelope" style="color: var(--primary-gold); margin-right: 0.5rem;"></i>
+                    <span style="color: var(--primary-gold); font-weight: bold;"><?= $unread ?></span>
+                    <span style="color: var(--text-gray);"> новых сообщений</span>
+                </div>
+                <?php endif; ?>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem;">
+                <div class="cyber-card" style="padding: 1.5rem; text-align: center;">
+                    <div style="font-size: 2.5rem; color: var(--cyber-blue); font-weight: bold;"><?= $stats['total'] ?></div>
+                    <div style="color: var(--text-gray); text-transform: uppercase; letter-spacing: 1px; font-size: 0.9rem;">Всего проектов</div>
+                </div>
+                <div class="cyber-card" style="padding: 1.5rem; text-align: center;">
+                    <div style="font-size: 2.5rem; color: var(--cyber-blue); font-weight: bold;"><?= $stats['new'] ?></div>
+                    <div style="color: var(--text-gray); text-transform: uppercase; letter-spacing: 1px; font-size: 0.9rem;">Новые</div>
+                </div>
+                <div class="cyber-card" style="padding: 1.5rem; text-align: center;">
+                    <div style="font-size: 2.5rem; color: var(--primary-gold); font-weight: bold;"><?= $stats['in_progress'] ?></div>
+                    <div style="color: var(--text-gray); text-transform: uppercase; letter-spacing: 1px; font-size: 0.9rem;">В работе</div>
+                </div>
+                <div class="cyber-card" style="padding: 1.5rem; text-align: center;">
+                    <div style="font-size: 2.5rem; color: var(--success); font-weight: bold;"><?= $stats['completed'] ?></div>
+                    <div style="color: var(--text-gray); text-transform: uppercase; letter-spacing: 1px; font-size: 0.9rem;">Завершено</div>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-bottom: 3rem;">
+                <a href="projects/available.php" class="cyber-card" style="text-decoration: none; display: flex; align-items: center; gap: 1.5rem; padding: 1.5rem; transition: all 0.3s;">
+                    <div style="width: 60px; height: 60px; border-radius: 50%; background: rgba(255,215,0,0.1); display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-search" style="font-size: 2rem; color: var(--primary-gold);"></i>
+                    </div>
+                    <div>
+                        <h3 style="color: var(--text-light); margin-bottom: 0.3rem; font-family: 'Orbitron';">Доступные проекты</h3>
+                        <p style="color: var(--text-gray); font-size: 0.9rem;">Список проектов, которые можно взять в работу</p>
+                    </div>
+                    <i class="fas fa-arrow-right" style="margin-left: auto; color: var(--primary-gold);"></i>
+                </a>
+
+                <a href="messages/index.php" class="cyber-card" style="text-decoration: none; display: flex; align-items: center; gap: 1.5rem; padding: 1.5rem; transition: all 0.3s;">
+                    <div style="width: 60px; height: 60px; border-radius: 50%; background: rgba(0,243,255,0.1); display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-comments" style="font-size: 2rem; color: var(--cyber-blue);"></i>
+                    </div>
+                    <div>
+                        <h3 style="color: var(--text-light); margin-bottom: 0.3rem; font-family: 'Orbitron';">Сообщения</h3>
+                        <p style="color: var(--text-gray); font-size: 0.9rem;">Общение по текущим проектам</p>
+                    </div>
+                    <i class="fas fa-arrow-right" style="margin-left: auto; color: var(--cyber-blue);"></i>
+                </a>
+            </div>
+
+            <?php if ($recent_projects && mysqli_num_rows($recent_projects) > 0): ?>
+            <div class="cyber-card" style="margin-bottom: 3rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <h3 style="color: var(--primary-gold); font-family: 'Orbitron'; font-size: 1.3rem;">
+                        <i class="fas fa-history" style="margin-right: 0.5rem;"></i> Последние проекты
+                    </h3>
+                    <a href="projects/available.php" class="btn-cyber btn-neon" style="padding: 0.5rem 1rem; min-width: auto;">Открыть доступные <i class="fas fa-arrow-right"></i></a>
+                </div>
+
+                <div style="display: grid; gap: 1rem;">
+                    <?php while ($project = fetch($recent_projects)):
+                        $status_color = $project['status'] === 'new' ? 'var(--cyber-blue)' : ($project['status'] === 'in_progress' ? 'var(--primary-gold)' : ($project['status'] === 'completed' ? 'var(--success)' : 'var(--text-gray)'));
+                        $status_name = $project['status'] === 'new' ? 'Новый' : ($project['status'] === 'in_progress' ? 'В работе' : ($project['status'] === 'completed' ? 'Завершен' : $project['status']));
+                    ?>
+                    <a href="projects/view.php?id=<?= (int)$project['id'] ?>" style="text-decoration: none; display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: rgba(255,255,255,0.02); border-radius: 4px; transition: 0.3s; border: 1px solid transparent;">
+                        <div style="flex: 1;">
+                            <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                                <h4 style="color: var(--text-light); font-size: 1.1rem;"><?= htmlspecialchars($project['title']) ?></h4>
+                                <span style="background: <?= $status_color ?>20; color: <?= $status_color ?>; padding: 0.2rem 0.8rem; border-radius: 20px; font-size: 0.75rem;"><?= $status_name ?></span>
+                            </div>
+                            <p style="color: var(--text-gray); font-size: 0.9rem; margin-top: 0.3rem;"><?= htmlspecialchars($project['company_name']) ?></p>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <span style="color: var(--text-gray); font-size: 0.85rem;"><i class="fas fa-calendar"></i> <?= date('d.m.Y', strtotime($project['created_at'])) ?></span>
+                            <i class="fas fa-chevron-right" style="color: var(--primary-gold);"></i>
+                        </div>
+                    </a>
+                    <?php endwhile; ?>
+                </div>
+            </div>
             <?php endif; ?>
-        </main>
-    </div>
+
+            <div style="margin-top: 2rem; display: flex; justify-content: space-between; align-items: center; color: var(--text-gray); font-size: 0.85rem;">
+                <div><i class="fas fa-user-clock"></i> Дата регистрации: <?= date('d.m.Y', strtotime($developer['created_at'])) ?></div>
+                <div><i class="fas fa-history"></i> Последний вход: <?= $developer['last_login'] ? date('d.m.Y H:i', strtotime($developer['last_login'])) : 'Первый вход' ?></div>
+                <a href="profile.php" class="btn-cyber btn-neon" style="padding: 0.3rem 1rem; min-width: auto;"><i class="fas fa-user"></i> Профиль</a>
+            </div>
+        </div>
+    </section>
+
+    <footer class="cyber-footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <div class="copyright">© <?= date('Y') ?> LARK FREELANCE</div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../assets/js/main.js"></script>
+    <script>
+        document.getElementById('menuToggle').addEventListener('click', function() {
+            document.querySelector('.nav-hologram').classList.toggle('active');
+        });
+    </script>
 </body>
 </html>
+
