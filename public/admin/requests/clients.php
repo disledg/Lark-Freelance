@@ -124,31 +124,8 @@ if ($applications) {
         <div class="floating-shapes"></div>
     </div>
 
-    <header class="cyber-header">
-        <div class="container">
-            <nav class="cyber-nav">
-                <a href="/" class="cyber-logo">
-                    <div class="logo-text">
-                        <span class="logo-gold">LARK</span>
-                        <span class="logo-light">FREELANCE</span>
-                    </div>
-                </a>
-                <div class="nav-hologram">
-                    <a href="/" class="nav-link">ГЛАВНАЯ</a>
-                    <a href="../dashboard.php" class="nav-link">ДАШБОРД</a>
-                    <a href="../projects/index.php" class="nav-link">ПРОЕКТЫ</a>
-                    <a href="developers.php" class="nav-link">РАЗРАБОТЧИКИ</a>
-                    <a href="clients.php" class="nav-link active">КЛИЕНТЫ</a>
-                    <a href="../logout.php" class="nav-link admin-portal">
-                        <i class="fas fa-sign-out-alt"></i> ВЫЙТИ
-                    </a>
-                </div>
-                <button class="cyber-menu-btn" id="menuToggle">
-                    <span></span><span></span><span></span>
-                </button>
-            </nav>
-        </div>
-    </header>
+    <?php $adminActivePage = 'clients'; ?>
+    <?php require_once __DIR__ . '/../includes/admin-header.php'; ?>
 
     <section class="cyber-section" style="padding-top: 8rem;">
         <div class="container">
@@ -182,7 +159,7 @@ if ($applications) {
                             <th style="padding: 1rem; text-align: left;">Контакт</th>
                             <th style="padding: 1rem; text-align: left;">Email</th>
                             <th style="padding: 1rem; text-align: left;">Статус</th>
-                            <th style="padding: 1rem; text-align: left;">Действия</th>
+                            <th style="padding: 1rem; text-align: left;"></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -264,6 +241,13 @@ if ($applications) {
         </div>
     </div>
     <?php endif; ?>
+
+    <style>
+        .cyber-footer {
+            margin-top: 4rem;
+            padding-bottom: 6rem;
+        }
+    </style>
 
     <footer class="cyber-footer">
         <div class="container"><div class="footer-bottom"><div class="copyright">© <?= date('Y') ?> LARK FREELANCE</div></div></div>

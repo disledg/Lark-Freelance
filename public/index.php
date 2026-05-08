@@ -2,6 +2,7 @@
 // Подключаем базу данных
 require_once 'includes/config.php';
 require_once 'includes/db.php';
+require_once 'includes/cases.php';
 
 // Проверяем подключение и получаем данные
 $stats = [
@@ -31,17 +32,65 @@ if ($result) {
     $stats['clients'] = $row['count'];
 }
 
-$specialists = [
-    ['full_name' => 'Иван Петров', 'level' => 'junior', 'skills' => '["React","JS","HTML"]', 'experience' => 'Фронтенд-разработчик', 'rating' => 3.5],
-    ['full_name' => 'Анна Смирнова', 'level' => 'middle', 'skills' => '["PHP","Laravel","MySQL"]', 'experience' => 'Бэкенд-разработчик', 'rating' => 4.2],
-    ['full_name' => 'Дмитрий Иванов', 'level' => 'junior', 'skills' => '["Python","Django"]', 'experience' => 'Разработчик на Python', 'rating' => 3.8],
-    ['full_name' => 'Елена Козлова', 'level' => 'middle', 'skills' => '["UI/UX","Figma"]', 'experience' => 'UI/UX дизайнер', 'rating' => 4.5]
-];
+// Получаем специалистов из базы данных
+$specialists = [];
+$result = query("
+    SELECT u.full_name, d.level, d.skills, d.experience, d.rating
+    FROM developers d
+    JOIN users u ON d.user_id = u.id
+    WHERE u.status = 'approved' AND d.is_available = TRUE
+    ORDER BY d.rating DESC
+    LIMIT 4
+");
+if ($result) {
+    while ($row = fetch($result)) {
+        $specialists[] = [
+            'full_name' => $row['full_name'],
+            'level' => $row['level'],
+            'skills' => $row['skills'],
+            'experience' => $row['experience'],
+            'rating' => (float)$row['rating']
+        ];
+    }
+}
 
-$cases = [
-    ['title' => 'Платформа для онлайн-ритейлера', 'company_name' => 'E-COMMERCE', 'description' => 'Разработка высоконагруженной платформы с обработкой 10,000+ заказов в день', 'deadline' => '45 дней', 'budget' => 50000],
-    ['title' => 'Приложение для фитнес-трекинга', 'company_name' => 'MOBILE APP', 'description' => 'Кроссплатформенное приложение с интеграцией умных устройств и аналитикой', 'deadline' => '60 дней', 'budget' => 75000]
-];
+// Если нет специалистов в БД, используем демо-данные
+if (empty($specialists)) {
+    $specialists = [
+        ['full_name' => 'Иван Петров', 'level' => 'junior', 'skills' => '["React","JS","HTML"]', 'experience' => 'Фронтенд-разработчик', 'rating' => 3.5],
+        ['full_name' => 'Анна Смирнова', 'level' => 'middle', 'skills' => '["PHP","Laravel","MySQL"]', 'experience' => 'Бэкенд-разработчик', 'rating' => 4.2],
+        ['full_name' => 'Дмитрий Иванов', 'level' => 'junior', 'skills' => '["Python","Django"]', 'experience' => 'Разработчик на Python', 'rating' => 3.8],
+        ['full_name' => 'Елена Козлова', 'level' => 'middle', 'skills' => '["UI/UX","Figma"]', 'experience' => 'UI/UX дизайнер', 'rating' => 4.5]
+    ];
+}
+
+// Получаем кейсы из базы данных
+$cases = [];
+try {
+    $result = getAllCases(true); // Только избранные кейсы
+    if ($result) {
+        while ($row = mysqli_fetch_assoc($result)) {
+            $cases[] = [
+                'title' => $row['title'],
+                'company_name' => $row['company_name'],
+                'description' => $row['description'],
+                'deadline' => $row['deadline'],
+                'budget' => (float)$row['budget']
+            ];
+        }
+    }
+} catch (Exception $e) {
+    // Если таблицы cases нет, используем демо-данные
+    error_log("Таблица cases не найдена, используем демо-данные: " . $e->getMessage());
+}
+
+// Если нет кейсов в БД, используем демо-данные
+if (empty($cases)) {
+    $cases = [
+        ['title' => 'Платформа для онлайн-ритейлера', 'company_name' => 'E-COMMERCE', 'description' => 'Разработка высоконагруженной платформы с обработкой 10,000+ заказов в день', 'deadline' => '45 дней', 'budget' => 50000],
+        ['title' => 'Приложение для фитнес-трекинга', 'company_name' => 'MOBILE APP', 'description' => 'Кроссплатформенное приложение с интеграцией умных устройств и аналитикой', 'deadline' => '60 дней', 'budget' => 75000]
+    ];
+}
 ?>
 <!DOCTYPE html>
 <html lang="ru">

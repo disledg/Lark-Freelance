@@ -140,6 +140,24 @@ CREATE TABLE logs (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
+-- Успешные кейсы
+CREATE TABLE cases (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    project_id INT NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    company_name VARCHAR(100) NOT NULL,
+    description TEXT NOT NULL,
+    deadline VARCHAR(50),
+    budget DECIMAL(10,2),
+    technologies TEXT,
+    challenges TEXT,
+    results TEXT,
+    is_featured BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+
 -- Создаем админа по умолчанию (пароль: admin123)
 INSERT INTO users (username, email, password, full_name, role, status) 
 VALUES ('admin', 'admin@lark.ru', '$2y$10$YourHashHere', 'Admin', 'admin', 'approved');

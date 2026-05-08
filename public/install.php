@@ -125,6 +125,25 @@ if (mysqli_query($conn, $sql)) {
 // Выбираем БД
 mysqli_select_db($conn, $dbname);
 
+// Отключаем проверку иностранных ключей для удаления таблиц
+echo "<h2>5.5. Удаление старых таблиц:</h2>";
+mysqli_query($conn, "SET FOREIGN_KEY_CHECKS = 0");
+
+$tables_to_drop = [
+    'cases', 'messages', 'project_status_history', 'logs', 'notifications',
+    'projects', 'client_applications', 'developer_applications',
+    'clients', 'developers', 'users'
+];
+
+foreach ($tables_to_drop as $table) {
+    if (mysqli_query($conn, "DROP TABLE IF EXISTS $table")) {
+        echo "✓ Таблица $table удалена (если существовала)<br>";
+    }
+}
+
+// Включаем проверку иностранных ключей обратно
+mysqli_query($conn, "SET FOREIGN_KEY_CHECKS = 1");
+
 // Создаем таблицы
 echo "<h2>6. Создание таблиц:</h2>";
 
@@ -267,16 +286,42 @@ $tables_sql = [
             ip VARCHAR(45),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+        )",
+        
+        // Успешные кейсы
+        "CREATE TABLE cases (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            project_id INT NOT NULL,
+            title VARCHAR(200) NOT NULL,
+            company_name VARCHAR(100) NOT NULL,
+            description TEXT NOT NULL,
+            deadline VARCHAR(50),
+            budget DECIMAL(10,2),
+            technologies TEXT,
+            challenges TEXT,
+            results TEXT,
+            is_featured BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
         )"
     ];
 
 $success_count = 0;
+$error_count = 0;
+
 foreach ($tables_sql as $sql) {
-    if (mysqli_query($conn, $sql)) {
-        echo "✓ Таблица создана<br>";
-        $success_count++;
-    } else {
-        echo "✗ Ошибка: " . mysqli_error($conn) . "<br>";
+    try {
+        if (mysqli_query($conn, $sql)) {
+            echo "✓ Таблица создана<br>";
+            $success_count++;
+        } else {
+            echo "✗ Ошибка: " . mysqli_error($conn) . "<br>";
+            $error_count++;
+        }
+    } catch (Exception $e) {
+        echo "✗ Исключение: " . $e->getMessage() . "<br>";
+        $error_count++;
     }
 }
 
@@ -302,6 +347,83 @@ if ($row['count'] == 0) {
     }
 } else {
     echo "✓ Пользователи уже существуют<br>";
+}
+
+echo "<h2>8. Создание тестовых кейсов:</h2>";
+
+// Проверяем, есть ли уже кейсы
+$result = mysqli_query($conn, "SELECT COUNT(*) as count FROM cases");
+$row = mysqli_fetch_assoc($result);
+
+if ($row['count'] == 0) {
+    // Проверяем, есть ли завершенные проекты
+    $projects_result = mysqli_query($conn, "SELECT id FROM projects WHERE status = 'completed' LIMIT 2");
+    
+    if (mysqli_num_rows($projects_result) > 0) {
+        $test_cases = [
+            [
+                'title' => 'Платформа для онлайн-ритейлера',
+                'company_name' => 'E-COMMERCE',
+                'description' => 'Разработка высоконагруженной платформы с обработкой 10,000+ заказов в день',
+                'deadline' => '45 дней',
+                'budget' => 50000.00,
+                'technologies' => 'PHP, Laravel, MySQL, Redis, Docker',
+                'challenges' => 'Оптимизация производительности, масштабируемость, безопасность платежей',
+                'results' => 'Увеличение конверсии на 35%, обработка 15,000 заказов в день',
+                'is_featured' => 1
+            ],
+            [
+                'title' => 'Приложение для фитнес-трекинга',
+                'company_name' => 'MOBILE APP',
+                'description' => 'Кроссплатформенное приложение с интеграцией умных устройств и аналитикой',
+                'deadline' => '60 дней',
+                'budget' => 75000.00,
+                'technologies' => 'React Native, Node.js, MongoDB, AWS',
+                'challenges' => 'Интеграция с 10+ типами устройств, оффлайн режим, аналитика данных',
+                'results' => '1M+ скачиваний, средний рейтинг 4.8, 300k активных пользователей',
+                'is_featured' => 1
+            ]
+        ];
+        
+        $project_ids = [];
+        while ($p = mysqli_fetch_assoc($projects_result)) {
+            $project_ids[] = $p['id'];
+        }
+        
+        $case_count = 0;
+        foreach ($test_cases as $i => $case_data) {
+            if (isset($project_ids[$i])) {
+                $title = mysqli_real_escape_string($conn, $case_data['title']);
+                $company = mysqli_real_escape_string($conn, $case_data['company_name']);
+                $description = mysqli_real_escape_string($conn, $case_data['description']);
+                $deadline = mysqli_real_escape_string($conn, $case_data['deadline']);
+                $technologies = mysqli_real_escape_string($conn, $case_data['technologies']);
+                $challenges = mysqli_real_escape_string($conn, $case_data['challenges']);
+                $results = mysqli_real_escape_string($conn, $case_data['results']);
+                $project_id = $project_ids[$i];
+                $featured = $case_data['is_featured'];
+                $budget = $case_data['budget'];
+                
+                $sql = "INSERT INTO cases (project_id, title, company_name, description, deadline, budget, technologies, challenges, results, is_featured) 
+                        VALUES ($project_id, '$title', '$company', '$description', '$deadline', $budget, '$technologies', '$challenges', '$results', $featured)";
+                
+                if (mysqli_query($conn, $sql)) {
+                    echo "✓ Тестовый кейс '$title' создан<br>";
+                    $case_count++;
+                } else {
+                    echo "✗ Ошибка создания кейса: " . mysqli_error($conn) . "<br>";
+                }
+            }
+        }
+        
+        if ($case_count > 0) {
+            echo "✓ Всего кейсов создано: $case_count<br>";
+        }
+    } else {
+        echo "ℹ Завершенных проектов не найдено. Кейсы можно создавать через админ-панель<br>";
+    }
+} else {
+    echo "✓ Кейсы уже существуют<br>";
 }
 
 mysqli_close($conn);

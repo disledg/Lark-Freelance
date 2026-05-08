@@ -364,32 +364,8 @@ $status_colors = [
         <div class="floating-shapes"></div>
     </div>
 
-    <header class="cyber-header">
-        <div class="container">
-            <nav class="cyber-nav">
-                <a href="/" class="cyber-logo">
-                    <div class="logo-text">
-                        <span class="logo-gold">LARK</span>
-                        <span class="logo-light">FREELANCE</span>
-                    </div>
-                </a>
-                <div class="nav-hologram">
-                    <a href="/" class="nav-link">ГЛАВНАЯ</a>
-                    <a href="../dashboard.php" class="nav-link">ДАШБОРД</a>
-                    <a href="index.php" class="nav-link active">ПРОЕКТЫ</a>
-                    <a href="../requests/developers.php" class="nav-link">ЗАЯВКИ</a>
-                    <a href="../logout.php" class="nav-link admin-portal">
-                        <i class="fas fa-sign-out-alt"></i> ВЫЙТИ
-                    </a>
-                </div>
-                <button class="cyber-menu-btn" id="menuToggle">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                </button>
-            </nav>
-        </div>
-    </header>
+    <?php $adminActivePage = 'projects'; ?>
+    <?php require_once __DIR__ . '/../includes/admin-header.php'; ?>
 
     <section class="cyber-section" style="padding-top: 8rem;">
         <div class="container">
@@ -642,6 +618,13 @@ $status_colors = [
             </div>
         </div>
     </section>
+
+    <style>
+        .cyber-footer {
+            margin-top: 4rem;
+            padding-bottom: 5rem;
+        }
+    </style>
 
     <footer class="cyber-footer">
         <div class="container">

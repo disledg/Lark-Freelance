@@ -69,34 +69,9 @@ if ($projects) {
         <div class="floating-shapes"></div>
     </div>
 
-    <header class="cyber-header">
-        <div class="container">
-            <nav class="cyber-nav">
-                <a href="/" class="cyber-logo">
-                    <div class="logo-text">
-                        <span class="logo-gold">LARK</span>
-                        <span class="logo-light">FREELANCE</span>
-                    </div>
-                </a>
+    <?php $adminActivePage = 'projects'; ?>
+    <?php require_once __DIR__ . '/../includes/admin-header.php'; ?>
 
-                <div class="nav-hologram">
-                    <a href="/" class="nav-link">ГЛАВНАЯ</a>
-                    <a href="../dashboard.php" class="nav-link">ДАШБОРД</a>
-                    <a href="index.php" class="nav-link active">ПРОЕКТЫ</a>
-                    <a href="../requests/developers.php" class="nav-link">ЗАЯВКИ</a>
-                    <a href="../logout.php" class="nav-link admin-portal">
-                        <i class="fas fa-sign-out-alt"></i> ВЫЙТИ
-                    </a>
-                </div>
-
-                <button class="cyber-menu-btn" id="menuToggle">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                </button>
-            </nav>
-        </div>
-    </header>
 
     <section class="cyber-section" style="padding-top: 8rem;">
         <div class="container">
@@ -177,14 +152,8 @@ if ($projects) {
                                     </span>
                                 </td>
                                 <td style="padding: 1rem;">
-                                    <a href="view.php?id=<?= $project['id'] ?>" class="btn-cyber btn-neon" style="padding: 0.3rem 1rem; min-width: auto; font-size: 0.8rem;">
+                                    <a href="view.php?id=<?= $project['id'] ?>" class="btn-cyber btn-neon" style="padding: 0.5rem 1rem; min-width: auto; font-size: 0.9rem;">
                                         <i class="fas fa-eye"></i>
-                                    </a>
-                                    <a href="assign.php?id=<?= $project['id'] ?>" class="btn-cyber btn-gold" style="padding: 0.3rem 1rem; min-width: auto; font-size: 0.8rem;">
-                                        <i class="fas fa-user-plus"></i>
-                                    </a>
-                                    <a href="status.php?id=<?= $project['id'] ?>" class="btn-cyber btn-neon" style="padding: 0.3rem 1rem; min-width: auto; font-size: 0.8rem;">
-                                        <i class="fas fa-tag"></i>
                                     </a>
                                 </td>
                             </tr>
@@ -202,6 +171,13 @@ if ($projects) {
             </div>
         </div>
     </section>
+
+    <style>
+        .cyber-footer {
+            margin-top: 4rem;
+            padding-bottom: 5rem;
+        }
+    </style>
 
     <footer class="cyber-footer">
         <div class="container">
