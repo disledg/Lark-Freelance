@@ -51,7 +51,7 @@ $unread = $unread_messages ? fetch($unread_messages)['count'] : 0;
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body class="dark-theme">
+<body class="dark-theme" style="padding-bottom: 100px;">
     <div class="cyber-background">
         <div class="grid-lines"></div>
         <div class="floating-shapes">
@@ -75,7 +75,6 @@ $unread = $unread_messages ? fetch($unread_messages)['count'] : 0;
                 <div class="nav-hologram">
                     <a href="/" class="nav-link">ГЛАВНАЯ</a>
                     <a href="../dashboard.php" class="nav-link">КАБИНЕТ</a>
-                    <a href="../projects/available.php" class="nav-link">ДОСТУПНЫЕ</a>
                     <a href="../profile.php" class="nav-link">ПРОФИЛЬ</a>
                     <a href="index.php" class="nav-link active">
                         <i class="fas fa-envelope"></i>
@@ -97,7 +96,7 @@ $unread = $unread_messages ? fetch($unread_messages)['count'] : 0;
         </div>
     </header>
 
-    <section class="cyber-section" style="padding-top: 8rem;">
+    <section class="cyber-section" style="padding-top: 8rem; margin-bottom: 5rem;">
         <div class="container">
             <h1 class="title-gold" style="font-size: 2rem; margin-bottom: 2rem;">
                 <i class="fas fa-envelope" style="margin-right: 0.5rem;"></i> Сообщения
@@ -149,7 +148,7 @@ $unread = $unread_messages ? fetch($unread_messages)['count'] : 0;
         </div>
     </section>
 
-    <footer class="cyber-footer">
+    <footer class="cyber-footer" style="position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;">
         <div class="container">
             <div class="footer-bottom">
                 <div class="copyright">© <?= date('Y') ?> LARK FREELANCE</div>

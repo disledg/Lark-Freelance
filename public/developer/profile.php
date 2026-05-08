@@ -76,7 +76,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="nav-hologram">
                     <a href="/" class="nav-link">ГЛАВНАЯ</a>
                     <a href="dashboard.php" class="nav-link">КАБИНЕТ</a>
-                    <a href="projects/available.php" class="nav-link">ДОСТУПНЫЕ</a>
                     <a href="profile.php" class="nav-link active">ПРОФИЛЬ</a>
                     <a href="messages/index.php" class="nav-link">
                         <i class="fas fa-envelope"></i>

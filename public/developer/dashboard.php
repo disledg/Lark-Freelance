@@ -83,7 +83,6 @@ $unread = $unread_messages ? (int)fetch($unread_messages)['count'] : 0;
                 <div class="nav-hologram">
                     <a href="/" class="nav-link">ГЛАВНАЯ</a>
                     <a href="dashboard.php" class="nav-link active">КАБИНЕТ</a>
-                    <a href="projects/available.php" class="nav-link">ДОСТУПНЫЕ</a>
                     <a href="profile.php" class="nav-link">ПРОФИЛЬ</a>
                     <a href="messages/index.php" class="nav-link">
                         <i class="fas fa-envelope"></i>
@@ -145,18 +144,7 @@ $unread = $unread_messages ? (int)fetch($unread_messages)['count'] : 0;
                 </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-bottom: 3rem;">
-                <a href="projects/available.php" class="cyber-card" style="text-decoration: none; display: flex; align-items: center; gap: 1.5rem; padding: 1.5rem; transition: all 0.3s;">
-                    <div style="width: 60px; height: 60px; border-radius: 50%; background: rgba(255,215,0,0.1); display: flex; align-items: center; justify-content: center;">
-                        <i class="fas fa-search" style="font-size: 2rem; color: var(--primary-gold);"></i>
-                    </div>
-                    <div>
-                        <h3 style="color: var(--text-light); margin-bottom: 0.3rem; font-family: 'Orbitron';">Доступные проекты</h3>
-                        <p style="color: var(--text-gray); font-size: 0.9rem;">Список проектов, которые можно взять в работу</p>
-                    </div>
-                    <i class="fas fa-arrow-right" style="margin-left: auto; color: var(--primary-gold);"></i>
-                </a>
-
+            <div style="display: grid; grid-template-columns: repeat(1, 1fr); gap: 1.5rem; margin-bottom: 3rem;">
                 <a href="messages/index.php" class="cyber-card" style="text-decoration: none; display: flex; align-items: center; gap: 1.5rem; padding: 1.5rem; transition: all 0.3s;">
                     <div style="width: 60px; height: 60px; border-radius: 50%; background: rgba(0,243,255,0.1); display: flex; align-items: center; justify-content: center;">
                         <i class="fas fa-comments" style="font-size: 2rem; color: var(--cyber-blue);"></i>
@@ -175,7 +163,6 @@ $unread = $unread_messages ? (int)fetch($unread_messages)['count'] : 0;
                     <h3 style="color: var(--primary-gold); font-family: 'Orbitron'; font-size: 1.3rem;">
                         <i class="fas fa-history" style="margin-right: 0.5rem;"></i> Последние проекты
                     </h3>
-                    <a href="projects/available.php" class="btn-cyber btn-neon" style="padding: 0.5rem 1rem; min-width: auto;">Открыть доступные <i class="fas fa-arrow-right"></i></a>
                 </div>
 
                 <div style="display: grid; gap: 1rem;">

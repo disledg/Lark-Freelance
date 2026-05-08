@@ -25,53 +25,12 @@ $project_result = query("
     FROM projects p
     JOIN clients c ON c.id = p.client_id
     JOIN users u ON u.id = c.user_id
-    WHERE p.id = $project_id AND (p.developer_id = $developer_id OR p.developer_id IS NULL)
+    WHERE p.id = $project_id AND p.developer_id = $developer_id
     LIMIT 1
 ");
 $project = $project_result ? fetch($project_result) : null;
 if (!$project) {
     redirect('/developer/dashboard.php');
-}
-
-// Handle project application
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['apply_project'])) {
-    $cover_letter = escape($_POST['cover_letter'] ?? '');
-    $proposed_budget = isset($_POST['proposed_budget']) && is_numeric($_POST['proposed_budget']) ? (float)$_POST['proposed_budget'] : null;
-    $estimated_time = escape($_POST['estimated_time'] ?? '');
-
-    // Create notification for the client
-    $client_user_result = query("SELECT user_id FROM clients WHERE id = {$project['client_id']} LIMIT 1");
-    $client_user = $client_user_result ? fetch($client_user_result) : null;
-
-    if ($client_user) {
-        $message = "Разработчик " . htmlspecialchars($dev['full_name'] ?? 'Неизвестный') . " подал заявку на проект '" . htmlspecialchars($project['title']) . "'.";
-        if (!empty($cover_letter)) {
-            $message .= "\n\nСопроводительное письмо: " . $cover_letter;
-        }
-        if ($proposed_budget) {
-            $message .= "\nПредлагаемый бюджет: " . number_format($proposed_budget, 0, ',', ' ') . " ₽";
-        }
-        if (!empty($estimated_time)) {
-            $message .= "\nОриентировочное время выполнения: " . $estimated_time;
-        }
-
-        addNotification($client_user['user_id'], 'Новая заявка на проект', $message, "/client/projects/view.php?id={$project_id}");
-    }
-
-    // Create notification for managers
-    $managers_result = query("SELECT id FROM users WHERE role = 'manager' OR role = 'admin'");
-    if ($managers_result) {
-        while ($manager = fetch($managers_result)) {
-            $message = "Разработчик подал заявку на проект #" . $project_id . " '" . htmlspecialchars($project['title']) . "'.";
-            addNotification($manager['id'], 'Заявка на проект', $message, "/admin/projects/view.php?id={$project_id}");
-        }
-    }
-
-    // Log the application
-    addLog($user_id, 'project_application', "Applied for project #{$project_id}");
-
-    // Redirect with success message
-    redirect("/developer/projects/view.php?id={$project_id}&applied=1");
 }
 
 $unread_messages = query("
@@ -118,7 +77,6 @@ $unread = $unread_messages ? fetch($unread_messages)['count'] : 0;
                 <div class="nav-hologram">
                     <a href="/" class="nav-link">ГЛАВНАЯ</a>
                     <a href="../dashboard.php" class="nav-link">КАБИНЕТ</a>
-                    <a href="available.php" class="nav-link">ДОСТУПНЫЕ</a>
                     <a href="../profile.php" class="nav-link">ПРОФИЛЬ</a>
                     <a href="../messages/index.php" class="nav-link">
                         <i class="fas fa-envelope"></i>
@@ -155,19 +113,9 @@ $unread = $unread_messages ? fetch($unread_messages)['count'] : 0;
                         <a href="../messages/index.php?project=<?= (int)$project['id'] ?>" class="btn-cyber btn-gold" style="padding: 0.5rem 1rem; min-width: auto;">
                             <i class="fas fa-envelope" style="margin-right: 0.3rem;"></i> Сообщения
                         </a>
-                    <?php elseif ($project['developer_id'] === null && $project['status'] === 'new'): ?>
-                        <button onclick="openApplyModal()" class="btn-cyber btn-gold" style="padding: 0.5rem 1rem; min-width: auto;">
-                            <i class="fas fa-hand-paper" style="margin-right: 0.3rem;"></i> Подать заявку
-                        </button>
                     <?php endif; ?>
                 </div>
             </div>
-
-            <?php if (isset($_GET['applied'])): ?>
-            <div style="background: rgba(0,255,0,0.1); border: 1px solid var(--success); padding: 1rem; border-radius: 4px; margin-bottom: 2rem; color: var(--success);">
-                <i class="fas fa-check-circle" style="margin-right: 0.5rem;"></i> Ваша заявка успешно отправлена! Клиент и менеджеры получат уведомление.
-            </div>
-            <?php endif; ?>
 
             <!-- Информация о проекте -->
             <div class="cyber-card" style="margin-bottom: 2rem;">
@@ -251,65 +199,6 @@ $unread = $unread_messages ? fetch($unread_messages)['count'] : 0;
 
     <!-- Модальное окно для подачи заявки -->
     <div id="applyModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; align-items: center; justify-content: center; padding: 2rem; box-sizing: border-box;">
-        <div class="modal-content" style="background: rgba(20,20,30,0.98); backdrop-filter: blur(10px); border: 2px solid var(--primary-gold); border-radius: 12px; padding: 2.5rem; max-width: 700px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid rgba(255,215,0,0.3); padding-bottom: 1rem;">
-                <h3 style="color: var(--primary-gold); font-family: 'Orbitron'; font-size: 1.4rem; margin: 0;">
-                    <i class="fas fa-hand-paper" style="margin-right: 0.5rem;"></i> Подать заявку на проект
-                </h3>
-                <button onclick="closeApplyModal()" style="background: rgba(255,255,255,0.1); border: 1px solid var(--text-gray); border-radius: 50%; width: 40px; height: 40px; color: var(--text-gray); font-size: 1.2rem; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; justify-content: center;">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-
-            <form method="POST" style="display: grid; gap: 2rem;">
-                <div>
-                    <label style="display: block; color: var(--text-light); font-weight: 500; margin-bottom: 0.75rem; font-size: 1rem;">
-                        <i class="fas fa-envelope-open-text" style="margin-right: 0.5rem; color: var(--cyber-blue);"></i> Сопроводительное письмо
-                    </label>
-                    <textarea name="cover_letter" class="cyber-input" rows="5" placeholder="Расскажите почему вы подходите для этого проекта, ваш опыт и подход к решению..." style="resize: vertical; min-height: 120px;"></textarea>
-                </div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
-                    <div>
-                        <label style="display: block; color: var(--text-light); font-weight: 500; margin-bottom: 0.75rem; font-size: 1rem;">
-                            <i class="fas fa-ruble-sign" style="margin-right: 0.5rem; color: var(--success);"></i> Предлагаемый бюджет (₽)
-                        </label>
-                        <input name="proposed_budget" type="number" class="cyber-input" placeholder="Ваш бюджет" min="0" step="100">
-                        <small style="color: var(--text-gray); font-size: 0.85rem; display: block; margin-top: 0.5rem;">Оставьте пустым, если согласны с бюджетом заказчика</small>
-                    </div>
-
-                    <div>
-                        <label style="display: block; color: var(--text-light); font-weight: 500; margin-bottom: 0.75rem; font-size: 1rem;">
-                            <i class="fas fa-clock" style="margin-right: 0.5rem; color: var(--primary-gold);"></i> Ориентировочное время
-                        </label>
-                        <input name="estimated_time" class="cyber-input" placeholder="Например: 2 недели">
-                        <small style="color: var(--text-gray); font-size: 0.85rem; display: block; margin-top: 0.5rem;">Сроки выполнения</small>
-                    </div>
-                </div>
-
-                <div style="background: rgba(255,215,0,0.1); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--primary-gold);">
-                    <div style="color: var(--primary-gold); font-size: 1rem; font-weight: 500; margin-bottom: 0.75rem;">
-                        <i class="fas fa-info-circle" style="margin-right: 0.5rem;"></i> Что произойдет после отправки?
-                    </div>
-                    <ul style="color: var(--text-gray); font-size: 0.9rem; margin: 0; padding-left: 1.5rem; line-height: 1.6;">
-                        <li>Заказчик получит уведомление о вашей заявке</li>
-                        <li>Менеджеры рассмотрят вашу кандидатуру</li>
-                        <li>Вы получите ответ в ближайшее время</li>
-                    </ul>
-                </div>
-
-                <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1rem;">
-                    <button type="button" onclick="closeApplyModal()" class="btn-cyber btn-neon" style="padding: 0.875rem 2rem; font-size: 1rem;">
-                        <i class="fas fa-times" style="margin-right: 0.5rem;"></i> Отмена
-                    </button>
-                    <button type="submit" name="apply_project" class="btn-cyber btn-gold" style="padding: 0.875rem 2rem; font-size: 1rem;">
-                        <i class="fas fa-paper-plane" style="margin-right: 0.5rem;"></i> Отправить заявку
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <!-- Футер -->
     <footer class="cyber-footer">
         <div class="container">
@@ -323,30 +212,6 @@ $unread = $unread_messages ? fetch($unread_messages)['count'] : 0;
     <script>
         document.getElementById('menuToggle').addEventListener('click', function() {
             document.querySelector('.nav-hologram').classList.toggle('active');
-        });
-
-        function openApplyModal() {
-            document.getElementById('applyModal').style.display = 'flex';
-            document.body.style.overflow = 'hidden';
-        }
-
-        function closeApplyModal() {
-            document.getElementById('applyModal').style.display = 'none';
-            document.body.style.overflow = 'auto';
-        }
-
-        // Close modal when clicking outside
-        document.getElementById('applyModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeApplyModal();
-            }
-        });
-
-        // Close modal with Escape key
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && document.getElementById('applyModal').style.display === 'flex') {
-                closeApplyModal();
-            }
         });
     </script>
 </body>
