@@ -22,6 +22,17 @@ if (!$client) {
     // Если профиля нет, перенаправляем на создание
     redirect('edit.php');
 }
+
+$client_id = $client['id'];
+
+// Получаем непрочитанные сообщения
+$unread_messages = query("
+    SELECT COUNT(*) as count 
+    FROM messages m
+    JOIN projects p ON m.project_id = p.id
+    WHERE p.client_id = $client_id AND m.is_read = 0 AND m.sender_id != $user_id
+");
+$unread = $unread_messages ? fetch($unread_messages)['count'] : 0;
 ?>
 <!DOCTYPE html>
 <html lang="ru">
@@ -52,8 +63,14 @@ if (!$client) {
                 <div class="nav-hologram">
                     <a href="/" class="nav-link">ГЛАВНАЯ</a>
                     <a href="../dashboard.php" class="nav-link">КАБИНЕТ</a>
-                    <a href="../projects/index.php" class="nav-link">ПРОЕКТЫ</a>
+                    <a href="../projects/index.php" class="nav-link">МОИ ПРОЕКТЫ</a>
                     <a href="index.php" class="nav-link active">ПРОФИЛЬ</a>
+                    <a href="../messages.php" class="nav-link">
+                        <i class="fas fa-envelope"></i>
+                        <?php if ($unread > 0): ?>
+                            <span style="margin-left: 0.35rem; color: var(--primary-gold);"><?= (int)$unread ?></span>
+                        <?php endif; ?>
+                    </a>
                     <a href="../logout.php" class="nav-link admin-portal">
                         <i class="fas fa-sign-out-alt"></i> ВЫЙТИ
                     </a>

@@ -133,6 +133,12 @@ $unread = $unread_messages ? fetch($unread_messages)['count'] : 0;
                     <a href="../dashboard.php" class="nav-link">КАБИНЕТ</a>
                     <a href="index.php" class="nav-link active">МОИ ПРОЕКТЫ</a>
                     <a href="../profile/index.php" class="nav-link">ПРОФИЛЬ</a>
+                    <a href="../messages.php" class="nav-link">
+                        <i class="fas fa-envelope"></i>
+                        <?php if ($unread > 0): ?>
+                            <span style="margin-left: 0.35rem; color: var(--primary-gold);"><?= (int)$unread ?></span>
+                        <?php endif; ?>
+                    </a>
                     
                     <?php if ($unread > 0): ?>
                     <a href="../messages.php" class="nav-link" style="position: relative;">
